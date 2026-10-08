@@ -1,0 +1,332 @@
+# config.yaml — Issaquah Development Agent
+# Endpoint resolution 2026-10-01 against publisher service directories.
+# Re-verify after any city GIS migration. Field names marked VERIFY are
+# unconfirmed — run `python s1_parcel_master.py --probe` to print them.
+
+zoning_vintage: "2026-10-01"
+
+# ── Service roots ────────────────────────────────────────────────────────
+_roots:
+  iss_planning: &planning https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/planning/MapServer
+  iss_env:      &env      https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/environmental/MapServer
+  iss_base:     &base     https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/Issaquah_basemap_identify/MapServer
+  iss_parcels:  &parc     https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/ParcelsRelated/MapServer
+  iss_flood:    &flood    https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/flood/MapServer
+  iss_slide:    &slide    https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/WADNR_LandslideInventory/MapServer
+  iss_coal:     &coal     https://apps.issaquahwa.gov/server/rest/services/General_Mapservices/coal_mines/MapServer
+  kc_sao:       &sao      https://gismaps.kingcounty.gov/arcgis/rest/services/Environment/KingCo_SensitiveAreas/MapServer
+  kc_parcels:   &kcparc   https://gismaps.kingcounty.gov/arcgis/rest/services/Property/KingCo_Parcels/MapServer
+  dnr_ground:   &dnr      https://gis.dnr.wa.gov/site1/rest/services/Public_Geology/Ground_Response/MapServer
+  fema_nfhl:    &nfhl     https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer
+
+# Query envelope, EPSG:2926, padded around the Issaquah extent. Applied to
+# countywide and statewide sources so we fetch hundreds of features instead
+# of tens of thousands. Omitted for city services, which are pre-clipped.
+query_envelope_2926: [1318000, 183000, 1365000, 218000]
+
+# ── Parcel geometry ──────────────────────────────────────────────────────
+parcels:
+  mode: shapefile                 # service | shapefile
+  url: *parc
+  layer: 3                      # "Parcels" — city-maintained, EPSG:2926
+  pin_field: ParcelPIN                # VERIFY
+  shapefile_path: data/gis/King_County_Parcels.shp
+  shapefile_pin_field: PIN
+  note: >
+    The city layer is clipped, correctly projected, and avoids the 636,698-
+    feature county download. It may lag the county on very recent splits.
+    Switch mode to shapefile if S1 coverage drops or a split parcel is
+    missing. County REST fallback: KingCo_Parcels/0.
+
+# ── Framework layers ─────────────────────────────────────────────────────
+layers:
+
+  city_limits:
+    url: *base
+    layer: 2
+
+  streets:
+    url: *base
+    layer: 3
+
+  zoning:
+    url: *planning
+    layer: 7
+    field: Zoning                 # VERIFY — must match A1's `zone` column values
+    note: >
+      Zoning, not Comprehensive Plan land use designation. If the returned
+      values do not key to A1, you have the wrong layer: the Hub also
+      publishes a land use designation dataset that looks similar and would
+      silently mis-key every parcel.
+
+  subareas:
+    url: *planning
+    layer: 1
+    field: Name                 # VERIFY
+    note: >
+      Alternative if Subareas proves coarse: NeighborhoodsRelated/MapServer/1
+      (Neighborhoods). Subareas matches the Comprehensive Plan's own geography
+      and is the better match for A5 gap reporting.
+
+  development_agreements:
+    url: *planning
+    layer: 2
+    note: >
+      NEW. Feeds VESTED_OVERRIDE in A2 Part 3 and the D7 pipeline table.
+      Parcels inside a DA bypass forecast steps 3-4. Confirm the layer carries
+      unit counts or an agreement identifier; if it is boundary-only, it
+      flags vested parcels but the unit counts still come from D7.
+
+  applicable_codes:
+    url: *planning
+    layer: 3
+    note: >
+      Which code vintage governs a parcel. Not yet in the registry. Likely
+      relevant to A3 ordinance-status questions — review before adding.
+
+  paa:
+    url: https://gismaps.kingcounty.gov/arcgis/rest/services/Property/parcel_area/MapServer
+    layer: null
+    sdc_layer: paa_area
+    where: "JURIS = 'IS'"
+    use_envelope: true
+    note: >
+      King County paa_area, 96 polygons countywide, EPSG:2926, JURIS='IS' for
+      Issaquah. Issaquah's only remaining PAA is East Cougar Mountain, 588
+      acres. If no REST endpoint resolves, download paa_area from
+      https://www5.kingcounty.gov/sdc/?Layer=paa and set
+      paa.shapefile_path instead. PAA parcels are flagged, not scoped in.
+    shapefile_path: null
+
+  sidewalks:
+    url: null
+    note: >
+      CONFIRMED UNRESOLVABLE. The city publishes impervious surface with
+      sidewalk merged into a combined road-pavement-sidewalk class. There is
+      no layer that distinguishes improved from unimproved frontage.
+      See frontage_improved_default below.
+
+# ── Constraint registry endpoints ────────────────────────────────────────
+# Keys match d2_constraints.CONSTRAINT_LAYERS. Omit a key to disable it;
+# S2 reports omissions and D2 propagates them as an upper-bound caveat.
+
+  cara:
+    url: *env
+    layer: 18
+    note: "2023 edition. Layer 5 in the same service is superseded — do not use."
+
+  wellhead_1yr:
+    url: *env
+    layer: 4
+    note: >
+      Sammamish Plateau Water only. Does NOT cover City of Issaquah utility
+      wells. A no-hit is not evidence of no wellhead constraint.
+
+  soil_infiltration:
+    url: *env
+    layer: 10
+    field: CATEGORY             # VERIFY
+    feasible_values: []         # VERIFY — fill from the layer's coded values
+    note: >
+      Gates the CARA vault adder. While feasible_values is empty the adder
+      fires on every CARA parcel, which overstates cost across the valley.
+      Highest-value five minutes of verification in this file.
+
+  wetland_buffer:
+    url: *env
+    layer: 3
+    buffer_field: Iss_WetlandClass          # primary — coverage 63 vs 29
+    buffer_field_fallback: DOE_WetlandClass
+    numeral_meaning: category               # Ecology I-IV, per 18.802.220(B)
+    habitat_band: low                       # [A] low | moderate | high
+    land_use_intensity: high                # residential — not an assumption
+    iss_only_vintage: category              # category | legacy
+    default_class: III                      # [A] — see note
+    setback_beyond_buffer_ft: 15            # IMC 18.802.450(F)
+    class_override_file: kb/wetland_class_override.csv
+    note: >
+      Width from Table 18.802.220(B), keyed on category + habitat score +
+      adjacent land use intensity. The layer carries category only.
+      habitat_band is the larger assumption: Categories I, II and III take
+      IDENTICAL widths at the moderate and high bands, so the band choice
+      moves more capacity than any classification dispute. iss_only_vintage
+      governs 21 features reading Iss=3, where 'category' gives Cat III
+      (80 ft at low habitat) and 'legacy' gives Cat IV (50 ft). 'category'
+      is as-written, needs no inference, and is the wider buffer — which
+      reduces capacity, the opposite direction from the pipeline's usual
+      upper-bound convention. State that in the digest.
+      default_class moved from II to III: it applies to 51 capacity-relevant
+      unclassified features, and III is the modal class once the DA-area
+      nulls are excluded.
+
+  stream_buffer:
+    url: *base
+    layer: 7
+    buffer_width_field: BufferWidthFt    # city's published per-reach width
+    buffer_field: IsqRating              # fallback keying, if ever needed
+    zero_width_policy: drop              # fail | fallback | drop
+    buffer_add_ft: 0                     # [A] OHWM allowance — see note
+    note: >
+      Width comes from BufferWidthFt, the city's own per-reach determination,
+      which supersedes the hand-keyed WDFW water-type table. Two decisions are
+      explicit rather than defaulted. (1) buffer_add_ft: the source is stream
+      CENTERLINES while IMC 18.802 buffers run from the ordinary high water
+      mark, so a centerline buffer under-covers by roughly half the channel
+      width. 0 understates encumbrance on Issaquah Creek specifically. Setting
+      it is an [A] assumption and gets labeled as one. (2) zero_width_policy:
+      'fail' until you know whether zero-width reaches are piped segments
+      (drop) or missing data (fallback).
+
+  steep_slope:
+    url: *env
+    layer: 7
+
+  moderate_slope:
+    url: *env
+    layer: 17
+    enabled: false
+    note: "15-40% slopes. Not in the registry. Add only with a cost basis."
+
+  landslide_hazard:
+    url: *slide
+    layers: [3, 4]              # Scarps and Flanks, Landslide Deposits
+    note: >
+      WADNR inventory republished by the city, EPSG:2926. DO NOT ADD layer 5
+      (Study_Area) — it is the extent of the mapping effort and covers
+      everything; joining it flags every parcel in the city. Layers 0 (Fans),
+      1 (SLIP Landslides), 2 (Scarps) are candidates but overlap 3-4.
+      Simpler single-layer alternative: environmental/11.
+
+  landslide_affected_parcels:
+    url: *env
+    layer: 6
+    note: >
+      Publisher labels "[incomplete!]". PARCEL polygons, not hazard polygons.
+      FLAG ONLY — AREA_SHARE against this zeroes the entire parcel.
+
+  seismic_hazard:
+    url: *sao
+    layer: 8
+    use_envelope: true
+    note: >
+      SWITCHED from DNR NEHRP site class, which required an unverified
+      attribute filter and would otherwise hit every parcel and win the
+      deep_foundation group. This is a hazard-area polygon. County 1990 SAO
+      definition — a proxy for Issaquah's IMC 18.802 designation.
+
+  erosion_hazard:
+    url: *sao
+    layer: 7
+    use_envelope: true
+    note: "County 1990 SAO. Proxy for the city's own designation."
+
+  coal_mine_hazard:
+    url: *sao
+    layer: 9
+    use_envelope: true
+    note: >
+      67 polygons countywide, 1990 SAO, "Next Update: None planned".
+      Issaquah also publishes General_Mapservices/coal_mines/MapServer with
+      local workings and related features — richer, but layer IDs unconfirmed.
+      Probe it; if it carries a hazard-area polygon, prefer it and demote
+      this to a cross-check.
+
+  floodway:
+    url: *flood
+    layer: 5
+    note: >
+      City layer, FIRM effective 08/19/2020, EPSG:2926. Goes stale silently
+      if FEMA issues a new FIRM. Review annually against the NFHL
+      cross-check below.
+
+  floodplain_100yr:
+    url: *flood
+    layer: 6
+    note: "City layer. Floodway is layer 5 and is excluded by the registry's PROHIBIT handling."
+
+  floodplain_500yr:
+    url: *flood
+    layer: 7
+    enabled: false
+    note: "Not a regulated constraint. Available if a resilience scenario needs it."
+
+  liquefaction:
+    url: *dnr
+    layer: 0
+    where: "LIQUEFACTION_SUSCEPT IN ('high','moderate to high','moderate')"
+    use_envelope: true
+    note: "Palmer et al., OFR 2004-20. Regional screening, never a site geotech."
+
+  peat_soft_soils:
+    url: *dnr
+    layer: 0
+    where: "LIQUEFACTION_SUSCEPT LIKE '%peat%'"
+    use_envelope: true
+    note: >
+      Same layer as liquefaction. DNR maps peat separately because it is not
+      liquefiable but still requires site-specific analysis under the IBC.
+      VERIFY the attribute encoding — the LIKE clause is a guess.
+
+  # high_groundwater: no published layer. Superseded by soil_infiltration
+  #   for the stormwater question; the dewatering adder stays disabled and
+  #   S2 reports the omission.
+
+# ── Cross-checks: fetched for QA, never joined to capacity ───────────────
+crosschecks:
+  fema_nfhl_flood:
+    url: *nfhl
+    layer: 28
+    where: "FLD_ZONE IN ('A','AE','AO','AH')"
+    use_envelope: true
+    note: "Live FEMA. Compare area against the city flood layers annually."
+
+# ── Major transit stops ──────────────────────────────────────────────────
+# See the extended note below. Defined by parcel, not by a published layer,
+# because the city has not adopted a major transit stop map.
+major_transit_stops:
+  mode: parcels
+  pins:
+    - pin: "2924069143"
+      name: "Issaquah Transit Center"
+    - pin: "2224069158"
+      name: "Issaquah Highlands Park and Ride"
+  buffer_ft: 1320               # quarter mile
+  buffer_from: parcel_boundary  # parcel_boundary | parcel_centroid
+  measure: radial               # radial | network  (network not implemented)
+  note: >
+    UNSETTLED. See the "major transit stop" section of the method notes.
+    This is a working assumption with a material capacity consequence:
+    it decides which parcels carry a 4-unit middle-housing floor instead
+    of 2. S2 emits the affected parcel and unit counts under both the
+    boundary and centroid bases so the sensitivity is visible.
+
+# ── Explicit defaults that would otherwise be silent ─────────────────────
+frontage_improved_default: true
+# true  = never charge the $1,200/LF frontage adder (understates greenfield cost)
+# false = always charge it (overstates cost, manufactures "does not pencil")
+# No published layer resolves this. `true` is shipped because most built-up
+# Issaquah parcels do have improved frontage. S2 reports how many parcels
+# the choice touches. Do not change it without saying so in the manifest.
+
+frontage_improved_heuristic:
+  enabled: false
+  rule: "existing_units > 0 and yr_built >= 1990"
+  note: "[A] inference, not data. Off by default. Enable only with a stated basis."
+
+infiltration_feasible_default: false
+
+# ── Product form factors (unchanged, all [A]) ────────────────────────────
+product_forms:
+  _default:       {site_coverage: 0.35, below_grade_levels: 0, avg_unit_gsf: 1400}
+  adu:            {site_coverage: 0.10, below_grade_levels: 0, avg_unit_gsf: 850}
+  middle_housing: {site_coverage: 0.40, below_grade_levels: 0, avg_unit_gsf: 1300}
+  cottage:        {site_coverage: 0.35, below_grade_levels: 0, avg_unit_gsf: 1000}
+  townhouse:      {site_coverage: 0.45, below_grade_levels: 0, avg_unit_gsf: 1550}
+  stacked_flats:  {site_coverage: 0.50, below_grade_levels: 0, avg_unit_gsf: 1100}
+  podium:         {site_coverage: 0.65, below_grade_levels: 1, avg_unit_gsf: 1080}
+  tod_midrise:    {site_coverage: 0.70, below_grade_levels: 2, avg_unit_gsf: 1050}
+
+building_share_of_impervious: 0.70   # [A] building footprint as a share of the
+# impervious allowance; the rest is driveway, parking, walkway. Binds hardest
+# in C-Res (10% impervious) and SF-E (30%), where it is the footprint
+# constraint rather than the product form factor.

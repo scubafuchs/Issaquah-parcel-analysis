@@ -1,0 +1,27 @@
+zone,zone_name,zone_category,max_du_per_acre,max_du_per_lot,min_lot_area_sf,max_far,max_far_bonus,max_height_ft,max_height_bonus_ft,max_lot_coverage,max_impervious_pct,parking_min_per_unit,setback_front_ft,setback_side_ft,setback_rear_ft,setback_min_ft,mh_eligible,da_governed,densest_product,process_type,imc_citation,confidence,fill_needed
+C-RES,Conservancy-Residential,residential,0.2,,217800,,,30,,,0.10,,75,75,75,75,FALSE,FALSE,adu,building_permit,18.404.090(A); 18.400.060(A),H,parking_min_per_unit;mh_eligible
+SF-E,Single-Family - Estates,residential,1.24,,35000,,,30,,,0.30,,30,15,30,15,TRUE,FALSE,middle_housing,building_permit,18.404.090(A); 18.400.060(B),H,parking_min_per_unit
+SF-S,Single-Family - Suburban,residential,4.5,,9600,,,30,,,0.40,,20,8,10,8,TRUE,FALSE,middle_housing,building_permit,18.404.090(A); 18.400.060(C),H,parking_min_per_unit
+SF-SL,Single-Family - Small Lot,residential,7.26,,6000,,,30,,,0.50,,10,6,20,6,TRUE,FALSE,cottage,building_permit,18.404.090(A),H,parking_min_per_unit
+SF-D,Single-Family - Duplex,residential,14.52,,3000,,,25,,,0.50,,10,6,10,6,TRUE,FALSE,townhouse,short_plat,18.404.090(A); 18.400.060(E),H,parking_min_per_unit
+MF-M,Multifamily - Medium,residential,14.52,,2500,,,40,,,0.50,,10,7,20,7,FALSE,FALSE,stacked_flats,admin_land_use,18.404.090(A); 18.400.070(A),H,parking_min_per_unit
+MF-MOT,Multifamily - Medium Olde Town,residential,14.52,,2500,,,40,,,0.50,,10,7,20,7,FALSE,FALSE,stacked_flats,admin_land_use,18.404.090(A); 18.400.070(A),M,parking_min_per_unit;height_story_cap
+MF-H,Multifamily - High,residential,29,,,,,40,,,,,10,5,20,5,FALSE,FALSE,stacked_flats,admin_land_use,18.404.090(A); 18.400.070(B),H,parking_min_per_unit;max_impervious_pct
+MF-HES,Multifamily - High East Sunset,residential,29,,,,,40,,,,,10,5,20,5,FALSE,FALSE,stacked_flats,admin_land_use,18.404.090(A); 18.400.070(B),M,parking_min_per_unit;max_impervious_pct
+UV-SF,Urban Village - Single-Family,residential,,,,,,,,,,,,,,,TRUE,TRUE,middle_housing,type4_rezone_da,18.400.060(F); development agreement,M,all_standards_da_governed
+UV-MF,Urban Village - Multifamily,residential,,,,,,,,,,,,,,,FALSE,TRUE,stacked_flats,type4_rezone_da,18.400.070(C); development agreement,M,all_standards_da_governed
+UV-MUR,Urban Village - Mixed-Use Residential,mixed,,,,,,,,,,,,,,,FALSE,TRUE,podium,type4_rezone_da,18.400.080(I); development agreement,M,all_standards_da_governed
+UV-COM/RET,Urban Village - Commercial/Retail,mixed,,,,,,,,,,,,,,,FALSE,TRUE,,type4_rezone_da,18.400.080(D); 18.404.100(B); development agreement,M,all_standards_da_governed;residential_capacity_from_da
+UV-O,Urban Village - Office,mixed,,,,,,,,,,,,,,,FALSE,TRUE,,type4_rezone_da,18.102.250; development agreement,L,all_standards_da_governed
+CBD,Cultural and Business District,mixed,,,,,,40,40,,0.85,,,,0,0,FALSE,FALSE,stacked_flats,admin_land_use,18.404.100(B); 18.400.080(B),H,parking_min_per_unit;setback_front_ft;setback_side_ft;max_far
+MU,Mixed-Use,mixed,,,,,,48,65,,0.90,,,,0,0,FALSE,FALSE,podium,admin_land_use,18.404.100(B),H,parking_min_per_unit;setback_front_ft;setback_side_ft;max_far
+MU-CI,Mixed-Use - Central Issaquah,mixed,,,,2.5,3.5,60,85,,0.90,,,,0,0,FALSE,FALSE,podium,admin_land_use,18.404.100(B); 18.404.150(B),H,parking_min_per_unit;setback_front_ft;setback_side_ft
+MUR,Mixed-Use Residential,mixed,,,,1.25,2.0,40,65,,0.80,,,,7,7,FALSE,FALSE,stacked_flats,admin_land_use,18.404.100(B); 18.404.150(B),H,parking_min_per_unit;setback_front_ft;setback_side_ft
+UC,Urban Core,mixed,,,,3.0,5.0,60,125,,0.95,,,,0,0,FALSE,FALSE,tod_midrise,hearing_examiner,18.404.100(B); 18.404.150(B); 18.400.080(F),H,parking_min_per_unit;setback_front_ft;setback_side_ft
+VR,Village Residential,mixed,,,,1.25,3.0,48,65,,0.80,,,,0,0,FALSE,FALSE,stacked_flats,admin_land_use,18.404.100(B); 18.404.150(B),H,parking_min_per_unit;setback_front_ft;setback_side_ft
+PO,Professional Office,mixed,,,,,,40,65,,0.65,,,,25,25,FALSE,FALSE,,admin_land_use,18.404.100(B),H,setback_front_ft;setback_side_ft;residential_permitted_unverified
+IC,Intensive Commercial,commercial,,,,,,40,65,,0.90,,,,5,5,FALSE,FALSE,,admin_land_use,18.404.100(B); 18.400.090(A),H,setback_front_ft;setback_side_ft;residential_permitted_unverified
+IC-CI,Intensive Commercial - Central Issaquah,commercial,,,,0.5,0.5,48,65,,0.90,,,,0,0,FALSE,FALSE,stacked_flats,admin_land_use,18.404.100(B); 18.404.150(B),H,parking_min_per_unit;setback_front_ft;setback_side_ft
+M,Mineral Resources,commercial,,,,,,105,105,,,,,,,,FALSE,FALSE,,hearing_examiner,18.404.100(B); 18.404.120; 18.400.090(B),H,non_residential_no_capacity
+C-REC,Conservancy-Recreation,community_resource,,,,,,,,,,,,,,,FALSE,FALSE,,hearing_examiner,18.404.110,M,all_standards_unkeyed;non_residential_no_capacity
+TP-NRCA,Tradition Plateau Natural Resource Conservation Area,community_resource,,,,,,,,,,,,,,,FALSE,FALSE,,hearing_examiner,18.400.030,M,all_standards_unkeyed;non_residential_no_capacity
